@@ -1,0 +1,421 @@
+<a routerLink="/reservas" class="text-action">← Volver a reservas</a
+><app-feedback [error]="error()" />
+@if (success()) {
+  <p class="success-note my-4" role="status">{{ success() }}</p>
+}
+@if (pending(); as p) {
+  <div class="rounded-xl border border-amber-300 bg-amber-50 p-5 my-4" role="status">
+    <strong>Movimiento pendiente de confirmar</strong>
+    <p class="text-sm mt-2">
+      {{ p.kind === 'pago' ? 'Pago' : 'Devolución' }} · {{ p.body.monto | pen }} · Reserva #{{
+        p.reservaId
+      }}
+    </p>
+    <p class="break-all text-xs mt-2">Clave: {{ p.body.claveOperacion }}</p>
+    <p class="text-xs mt-2">
+      Revisa el historial o reintenta con la misma clave. No se generará un segundo movimiento.
+    </p>
+    @if (p.reservaId === id) {
+      <button class="btn-secondary mt-3" [disabled]="busy()" (click)="sendPending()">
+        Reintentar el mismo movimiento
+      </button>
+    } @else {
+      <a class="text-action block mt-3" [routerLink]="['/reservas', p.reservaId]"
+        >Ir a la reserva pendiente →</a
+      >
+    }
+  </div>
+}
+@if (loading()) {
+  <app-loading />
+}
+@if (data(); as d) {
+  <div class="page-heading mt-5">
+    <div>
+      <p class="eyebrow">Reserva #{{ d.reserva.id }}</p>
+      <h1>{{ d.reserva.codigo }}</h1>
+      <p class="muted">
+        {{ d.reserva.titular.nombres }} {{ d.reserva.titular.apellidos }} · Habitación
+        {{ d.reserva.numeroHabitacion }}
+      </p>
+    </div>
+    <div class="flex gap-3 items-center">
+      <app-badge [value]="d.reserva.estado" /><button
+        class="btn-secondary"
+        [disabled]="busy() || loading()"
+        (click)="reload()"
+      >
+        Actualizar
+      </button>
+    </div>
+  </div>
+  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="card">
+      <p class="small-label">Alojamiento</p>
+      <p class="metric-value">{{ d.financiero.alojamiento | pen }}</p>
+    </div>
+    <div class="card">
+      <p class="small-label">Consumos vigentes</p>
+      <p class="metric-value">{{ d.financiero.consumos | pen }}</p>
+    </div>
+    <div class="card">
+      <p class="small-label">Neto cobrado</p>
+      <p class="metric-value">{{ d.financiero.netoCobrado | pen }}</p>
+    </div>
+    <div class="card !bg-ink !text-white">
+      <p class="text-xs text-slate-300">Saldo pendiente</p>
+      <p class="metric-value !text-white">{{ d.financiero.saldoPendiente | pen }}</p>
+    </div>
+  </div>
+  <nav class="flex gap-2 my-6 overflow-auto" aria-label="Detalle de la reserva">
+    @for (t of ['resumen', 'consumos', 'pagos']; track t) {
+      <button class="tab capitalize" [class.active]="tab() === t" (click)="tab.set(t)">
+        {{ t }}
+      </button>
+    }
+  </nav>
+  @if (tab() === 'resumen') {
+    <div class="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      <section class="card">
+        <h2 class="mb-5">Datos de la estancia</h2>
+        <dl class="detail-grid">
+          <div>
+            <dt>Entrada</dt>
+            <dd>{{ d.reserva.entrada | fecha }}</dd>
+          </div>
+          <div>
+            <dt>Salida</dt>
+            <dd>{{ d.reserva.salida | fecha }}</dd>
+          </div>
+          <div>
+            <dt>Noches / personas</dt>
+            <dd>{{ d.reserva.noches }} / {{ d.reserva.personas }}</dd>
+          </div>
+          <div>
+            <dt>Tarifa acordada</dt>
+            <dd>{{ d.reserva.tarifa | pen }}</dd>
+          </div>
+          <div>
+            <dt>Documento</dt>
+            <dd>{{ d.reserva.titular.tipoDocumento }} · {{ d.reserva.titular.documento }}</dd>
+          </div>
+          <div>
+            <dt>Contacto</dt>
+            <dd>
+              {{ d.reserva.titular.telefono || 'Sin teléfono' }}<br />{{
+                d.reserva.titular.correo || 'Sin correo'
+              }}
+            </dd>
+          </div>
+          <div>
+            <dt>Check-in</dt>
+            <dd>{{ d.estadia?.checkIn | fecha }}</dd>
+          </div>
+          <div>
+            <dt>Check-out</dt>
+            <dd>{{ d.estadia?.checkOut | fecha }}</dd>
+          </div>
+        </dl>
+        <p class="mt-5 text-sm text-slate-500">
+          {{ d.reserva.observaciones || 'Sin observaciones.' }}
+        </p>
+        <p class="mt-5 text-xs text-slate-400">
+          Creada {{ d.reserva.creado | fecha }} · Usuario #{{ d.reserva.creadorId }}
+        </p>
+      </section>
+      <section class="card">
+        <h2 class="mb-4">Operaciones</h2>
+        <div class="flex flex-col items-start gap-3">
+          @if (canCheckIn()) {
+            <button class="btn" [disabled]="busy()" (click)="action('check-in')">
+              Registrar check-in
+            </button>
+          }
+          @if (d.reserva.estado === 'EN_ESTADIA') {
+            <button class="btn" [disabled]="busy() || !canCheckOut()" (click)="action('check-out')">
+              Finalizar check-out
+            </button>
+            @if (!canCheckOut()) {
+              <p class="muted">Liquida el saldo para finalizar la estancia.</p>
+            }
+            <button class="btn-secondary" [disabled]="busy()" (click)="show('extender')">
+              Extender estancia
+            </button>
+          }
+          @if (d.reserva.estado === 'CONFIRMADA') {
+            <button class="btn-secondary" [disabled]="busy()" (click)="show('reprogramar')">
+              Reprogramar</button
+            ><button
+              class="btn-danger"
+              [disabled]="busy() || !canCancel()"
+              (click)="action('cancelacion')"
+            >
+              Cancelar reserva
+            </button>
+            @if (d.reserva.entrada < today) {
+              <button
+                class="btn-secondary"
+                [disabled]="busy() || !canCancel()"
+                (click)="action('no-presentado')"
+              >
+                Marcar no presentado
+              </button>
+            }
+            @if (!canCancel()) {
+              <p class="muted">Devuelve los cobros antes de cancelar.</p>
+            }
+          }
+          @if (!active()) {
+            <p class="muted">Esta reserva está cerrada. El historial permanece disponible.</p>
+          }
+        </div>
+        <p class="muted mt-6">
+          El backend verifica las transiciones, disponibilidad y permisos en cada operación.
+        </p>
+      </section>
+    </div>
+  }
+  @if (tab() === 'consumos') {
+    <section class="card">
+      <div class="section-heading">
+        <h2>Consumos</h2>
+        @if (d.reserva.estado === 'EN_ESTADIA') {
+          <button class="btn" [disabled]="busy()" (click)="show('consumo')">
+            + Agregar consumo
+          </button>
+        }
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Servicio</th>
+              <th>Cantidad / precio</th>
+              <th>Subtotal</th>
+              <th>Registro</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of d.consumos; track c.id) {
+              <tr>
+                <td>
+                  {{ c.nombre
+                  }}<span class="block text-xs text-red-700">{{ c.motivoAnulacion }}</span>
+                </td>
+                <td>{{ c.cantidad }} × {{ c.precio | pen }}</td>
+                <td>{{ c.subtotal | pen }}</td>
+                <td>
+                  {{ c.creado | fecha
+                  }}<span class="block text-xs"
+                    >{{ c.anulado ? 'ANULADO' : 'VIGENTE' }} · Usuario #{{ c.usuarioId }}</span
+                  >
+                </td>
+                <td>
+                  @if (!c.anulado && d.reserva.estado === 'EN_ESTADIA') {
+                    <button
+                      class="text-action"
+                      [disabled]="busy()"
+                      (click)="show('anular-consumo', c.id)"
+                    >
+                      Anular
+                    </button>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="text-center">Sin consumos registrados.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+  @if (tab() === 'pagos') {
+    <section class="card">
+      <div class="section-heading">
+        <div>
+          <h2>Pagos</h2>
+          <p class="muted">
+            Total {{ d.financiero.total | pen }} · Devoluciones
+            {{ d.financiero.devoluciones | pen }}
+          </p>
+        </div>
+        @if (active() && d.financiero.saldoPendiente > 0) {
+          <button
+            class="btn"
+            [disabled]="busy() || !!pending() || pendingBlocked()"
+            (click)="show('pago')"
+          >
+            + Registrar pago
+          </button>
+        }
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Pago</th>
+              <th>Monto</th>
+              <th>Medio / referencia</th>
+              <th>Registro</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of d.pagos; track p.id) {
+              <tr>
+                <td>
+                  #{{ p.id }} · {{ p.anulado ? 'ANULADO' : 'VIGENTE'
+                  }}<span class="block max-w-52 break-all text-[10px] text-slate-400">{{
+                    p.claveOperacion
+                  }}</span
+                  ><span class="block text-xs text-red-700">{{ p.motivoAnulacion }}</span>
+                </td>
+                <td>{{ p.monto | pen }}</td>
+                <td>
+                  {{ p.medio
+                  }}<span class="block text-xs">{{ p.referencia || 'Sin referencia' }}</span>
+                </td>
+                <td>
+                  {{ p.creado | fecha
+                  }}<span class="block text-xs">Usuario #{{ p.usuarioId }}</span>
+                </td>
+                <td>
+                  <div class="flex gap-3">
+                    @if (canAnnul(p)) {
+                      <button
+                        class="text-action"
+                        [disabled]="busy() || !!pending() || pendingBlocked()"
+                        (click)="show('anular-pago', p.id)"
+                      >
+                        Anular
+                      </button>
+                    }
+                    @if (auth.admin() && active() && !p.anulado && refundable(p) > 0) {
+                      <button
+                        class="text-action"
+                        [disabled]="busy() || !!pending() || pendingBlocked()"
+                        (click)="show('devolucion', p.id)"
+                      >
+                        Devolver
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="text-center">Sin pagos registrados.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <h3 class="mt-7 mb-3">Historial de devoluciones</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Pago original</th>
+              <th>Monto</th>
+              <th>Motivo</th>
+              <th>Fecha / responsable</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of d.devoluciones; track r.id) {
+              <tr>
+                <td>
+                  #{{ r.pagoId
+                  }}<span class="block text-[10px] break-all">{{ r.claveOperacion }}</span>
+                </td>
+                <td>{{ r.monto | pen }}</td>
+                <td>{{ r.motivo }}</td>
+                <td>{{ r.creado | fecha }} · #{{ r.usuarioId }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4">Sin devoluciones.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+}
+<app-modal
+  [open]="!!dialog()"
+  [busy]="busy()"
+  [title]="dialog().replaceAll('-', ' ')"
+  (dismiss)="dialog.set('')"
+  ><form [formGroup]="form" (ngSubmit)="submit()">
+    <app-feedback [error]="error()" />
+    @if (dialog() === 'reprogramar') {
+      <label
+        >Habitación<app-lookup
+          kind="habitaciones"
+          [label]="room()?.label ?? ''"
+          (chosen)="room.set($event)"
+      /></label>
+      <p class="muted mt-2">La disponibilidad se comprueba al guardar.</p>
+      <div class="field-grid mt-4">
+        <label>Entrada<input type="date" formControlName="entrada" [min]="today" /></label
+        ><label>Salida<input type="date" formControlName="salida" /></label
+        ><label>Personas<input type="number" formControlName="personas" min="1" max="20" /></label>
+      </div>
+    }
+    @if (dialog() === 'extender') {
+      <label>Nueva salida<input type="date" formControlName="salida" /></label>
+    }
+    @if (dialog() === 'consumo') {
+      <label
+        >Servicio<app-lookup
+          kind="servicios"
+          [label]="serviceChoice()?.label ?? ''"
+          (chosen)="serviceChoice.set($event)" /></label
+      ><label class="block mt-4"
+        >Cantidad<input type="number" min="1" max="10000" formControlName="cantidad"
+      /></label>
+    }
+    @if (dialog() === 'pago' || dialog() === 'devolucion') {
+      <p class="muted mb-4">
+        Saldo actual: {{ data()?.financiero?.saldoPendiente | pen }}. Este registro es manual; no
+        verifica una transferencia ni procesa tarjetas.
+      </p>
+      <label
+        >Monto (S/)<input
+          type="text"
+          inputmode="decimal"
+          formControlName="monto"
+          placeholder="0.00"
+      /></label>
+      @if (dialog() === 'pago') {
+        <label class="block mt-4"
+          >Medio<select formControlName="medio">
+            @for (m of medios; track m) {
+              <option [value]="m">{{ m }}</option>
+            }
+          </select></label
+        ><label class="block mt-4"
+          >Referencia (opcional)<input formControlName="referencia" maxlength="150"
+        /></label>
+      }
+    }
+    @if (dialog() === 'devolucion' || dialog() === 'anular-pago' || dialog() === 'anular-consumo') {
+      <label class="block mt-4"
+        >Motivo<textarea formControlName="motivo" maxlength="255" rows="3"></textarea>
+      </label>
+    }
+    <div class="flex justify-end gap-3 mt-6">
+      <button class="btn-secondary" type="button" [disabled]="busy()" (click)="dialog.set('')">
+        Volver</button
+      ><button class="btn" [disabled]="busy()">
+        {{ busy() ? 'Procesando…' : 'Confirmar operación' }}
+      </button>
+    </div>
+  </form></app-modal
+>

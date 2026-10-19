@@ -1,0 +1,101 @@
+<a
+  href="#main"
+  class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:p-3"
+  >Saltar al contenido</a
+>
+@if (mobile()) {
+  <button
+    class="fixed inset-0 z-30 bg-slate-950/45 lg:hidden"
+    aria-label="Cerrar menú"
+    (click)="mobile.set(false)"
+  ></button>
+}
+<aside
+  [attr.inert]="narrow() && !mobile() ? '' : null"
+  (keydown.escape)="mobile.set(false)"
+  class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-ink text-white transition-transform lg:translate-x-0"
+  [class.-translate-x-full]="!mobile()"
+>
+  <a
+    routerLink="/inicio"
+    class="flex items-center gap-3 border-b border-white/10 px-7 py-7"
+    (click)="mobile.set(false)"
+    ><span class="grid h-10 w-10 place-items-center rounded-xl bg-teal-500/15 text-teal-300"
+      ><app-icon name="building-2" [size]="25" /></span
+    ><span
+      ><strong class="block text-xl tracking-tight"
+        >HOTEL<span class="text-teal-300">.</span></strong
+      ><span class="text-[10px] uppercase tracking-[.22em] text-slate-400"
+        >Gestión & recepción</span
+      ></span
+    ></a
+  >
+  <p class="px-7 pt-7 pb-3 text-[10px] font-medium uppercase tracking-[.2em] text-slate-400">
+    Espacio de trabajo
+  </p>
+  <nav class="flex-1 space-y-1 overflow-y-auto px-4 pb-5" aria-label="Principal">
+    @for (item of nav; track item.url) {
+      @if (!item.admin || auth.admin()) {
+        <a
+          [routerLink]="item.url"
+          routerLinkActive="!bg-teal-500/15 !text-teal-200 !border-teal-400"
+          [routerLinkActiveOptions]="{ exact: item.url === '/reservas' }"
+          class="flex items-center gap-3 rounded-r-lg border-l-2 border-transparent px-4 py-3 text-sm text-slate-300 hover:bg-white/5 hover:text-white"
+          (click)="mobile.set(false)"
+          ><app-icon [name]="item.icon" />{{ item.label }}</a
+        >
+      }
+    }
+  </nav>
+  <div class="m-4 rounded-xl border border-white/10 bg-white/5 p-4">
+    <div class="flex items-center gap-2 text-xs font-medium text-teal-200">
+      <span class="h-1.5 w-1.5 rounded-full bg-teal-300"></span>Operación del hotel
+    </div>
+    <p class="mt-2 text-xs leading-relaxed text-slate-400">
+      Reservas, huéspedes y caja en un solo lugar.
+    </p>
+  </div>
+</aside>
+<div class="min-h-screen lg:pl-64">
+  <header
+    class="sticky top-0 z-20 flex h-20 items-center justify-between gap-4 border-b border-slate-200 bg-white/95 px-5 backdrop-blur sm:px-9"
+  >
+    <div class="flex items-center gap-3">
+      <button
+        class="btn-secondary lg:hidden"
+        aria-label="Abrir menú"
+        [attr.aria-expanded]="mobile()"
+        (click)="mobile.set(!mobile())"
+      >
+        <app-icon name="menu" />
+      </button>
+      <div>
+        <p class="font-semibold text-ink">{{ config.hotelName }}</p>
+        <p class="mt-0.5 text-xs text-slate-400">{{ today | fecha }} · America/Lima</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <a routerLink="/mi-cuenta" class="flex items-center gap-3"
+        ><span class="hidden text-right sm:block"
+          ><span class="block text-sm font-semibold text-ink">{{ auth.user()?.nombre }}</span
+          ><span class="text-[10px] uppercase tracking-wider text-slate-400">{{
+            auth.user()?.rol
+          }}</span></span
+        ><span
+          class="grid h-10 w-10 place-items-center rounded-full bg-teal-50 font-semibold text-ocean"
+          >{{ auth.user()?.nombre?.slice(0, 1) }}</span
+        ></a
+      ><button
+        class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-ink"
+        aria-label="Cerrar sesión"
+        (click)="auth.logout()"
+      >
+        <app-icon name="log-out" />
+      </button>
+    </div>
+  </header>
+  <main id="main" class="mx-auto max-w-[1500px] p-5 sm:p-9"><router-outlet /></main>
+  <footer class="px-9 pb-6 text-xs text-slate-400">
+    Hotel · Gestión interna <span class="float-right">Moneda PEN · Hora de Lima</span>
+  </footer>
+</div>

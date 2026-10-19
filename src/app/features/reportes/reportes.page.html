@@ -1,0 +1,163 @@
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Administración</p>
+    <h1>Reportes del hotel</h1>
+    <p class="muted">Información del backend · Soles (PEN) · Fechas en Lima</p>
+  </div>
+</div>
+<form [formGroup]="form" (ngSubmit)="load()" class="card filter-bar mb-6">
+  <label>Desde<input type="date" formControlName="desde" /></label
+  ><label>Hasta (inclusive)<input type="date" formControlName="hasta" /></label
+  ><button class="btn" [disabled]="busy()">Consultar</button>
+</form>
+<app-feedback [error]="error()" />
+@if (busy()) {
+  <app-loading />
+}
+@if (caja(); as c) {
+  <div class="grid gap-4 sm:grid-cols-3 mb-6">
+    <div class="card">
+      <p class="small-label">Cobros</p>
+      <p class="metric-value">{{ c.cobros | pen }}</p>
+    </div>
+    <div class="card">
+      <p class="small-label">Devoluciones</p>
+      <p class="metric-value">{{ c.devoluciones | pen }}</p>
+    </div>
+    <div class="card">
+      <p class="small-label">Caja neta</p>
+      <p class="metric-value">{{ c.neto | pen }}</p>
+    </div>
+  </div>
+}
+<p class="muted mb-6">
+  Los pagos anulados se excluyen de su fecha original. Las devoluciones se contabilizan en su propia
+  fecha. El importe reservado no equivale a dinero cobrado.
+</p>
+<div class="grid gap-6 xl:grid-cols-2">
+  @for (
+    group of [
+      { title: 'Reservas por estado', rows: reservas() },
+      { title: 'Medios de pago', rows: medios() },
+    ];
+    track group.title
+  ) {
+    <section class="card">
+      <h2 class="mb-4">{{ group.title }}</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Grupo</th>
+              <th>Cantidad</th>
+              <th>Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of group.rows; track r.grupo) {
+              <tr>
+                <td>{{ r.grupo }}</td>
+                <td>{{ r.cantidad }}</td>
+                <td>{{ r.importe | pen }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="3">Sin datos para este periodo.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</div>
+<section class="card mt-6">
+  <div class="section-heading">
+    <h2>Agenda por fecha</h2>
+    <form class="flex gap-3 items-end" (ngSubmit)="loadAgenda()">
+      <label>Fecha<input type="date" [formControl]="fecha" /></label
+      ><button class="btn-secondary" [disabled]="agendaBusy()">Ver</button>
+    </form>
+  </div>
+  <app-feedback [error]="agendaError()" />
+  @if (agendaBusy()) {
+    <app-loading />
+  }
+  @if (agenda(); as a) {
+    <div class="grid gap-6 md:grid-cols-2">
+      @for (
+        g of [
+          { title: 'Entradas', rows: a.entradas },
+          { title: 'Salidas', rows: a.salidas },
+        ];
+        track g.title
+      ) {
+        <div>
+          <h3 class="mb-2">{{ g.title }}</h3>
+          @for (r of g.rows; track r.id) {
+            <a class="flex justify-between border-b py-3 text-sm" [routerLink]="['/reservas', r.id]"
+              ><span
+                >{{ r.titular.nombres }} {{ r.titular.apellidos
+                }}<span class="block text-xs text-slate-400">{{ r.codigo }}</span></span
+              ><span>Hab. {{ r.numeroHabitacion }}</span></a
+            >
+          } @empty {
+            <p class="muted">Sin registros.</p>
+          }
+        </div>
+      }
+    </div>
+  }
+</section>
+<section class="card mt-6">
+  <div class="section-heading">
+    <div>
+      <h2>Saldos pendientes</h2>
+      <p class="muted">Situación actual, independiente del rango de fechas.</p>
+    </div>
+    <button class="text-action" (click)="saldos.load()">Actualizar</button>
+  </div>
+  @if (saldos.error()) {
+    <p class="error-note">{{ saldos.error() }}</p>
+  }
+  @if (saldos.loading()) {
+    <app-loading />
+  }
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Reserva</th>
+          <th>Estado</th>
+          <th>Total</th>
+          <th>Neto cobrado</th>
+          <th>Saldo</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of saldos.data().contenido; track r.reservaId) {
+          <tr>
+            <td>
+              <a class="text-action" [routerLink]="['/reservas', r.reservaId]">{{ r.codigo }}</a>
+            </td>
+            <td>{{ r.estado }}</td>
+            <td>{{ r.total | pen }}</td>
+            <td>{{ r.netoCobrado | pen }}</td>
+            <td class="font-semibold">{{ r.saldo | pen }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5">Sin saldos pendientes.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <app-pagination
+    [page]="saldos.data().pagina"
+    [pages]="saldos.data().totalPaginas"
+    [total]="saldos.data().totalElementos"
+    [busy]="saldos.loading()"
+    (change)="saldos.page($event)"
+  />
+</section>

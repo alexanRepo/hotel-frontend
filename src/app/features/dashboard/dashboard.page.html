@@ -1,0 +1,124 @@
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">{{ today | fecha }} · Hora de Lima</p>
+    <h1>Todo listo para recibir.</h1>
+    <p class="muted">Hola, {{ auth.user()?.nombre }}. Este es el estado de tu hotel.</p>
+  </div>
+  <button class="btn-secondary" [disabled]="busy()" (click)="load()">Actualizar</button>
+</div>
+<app-feedback [error]="error()" />
+<div class="relative overflow-hidden rounded-2xl bg-ink px-7 py-8 text-white mb-7">
+  <div class="absolute -right-12 -top-16 h-64 w-64 rounded-full border-[35px] border-white/5"></div>
+  <p class="text-xs tracking-[.2em] uppercase text-teal-200">Hospitalidad, bien organizada</p>
+  <h2 class="mt-3 max-w-xl !text-2xl !text-white">
+    Cada estancia empieza con una buena recepción.
+  </h2>
+  <p class="mt-3 max-w-lg text-sm text-slate-300">
+    Consulta las habitaciones y gestiona la próxima llegada desde un solo lugar.
+  </p>
+  <div class="mt-6 flex flex-wrap gap-3">
+    <a routerLink="/reservas/nueva" class="btn !bg-white !text-ink">+ Nueva reserva</a
+    ><a routerLink="/disponibilidad" class="btn !border !border-white/25 !bg-transparent"
+      >Consultar disponibilidad →</a
+    >
+  </div>
+</div>
+@if (busy()) {
+  <app-loading />
+}
+@if (ocupacion(); as o) {
+  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-7">
+    <div class="card">
+      <p class="small-label">Habitaciones activas</p>
+      <p class="metric-value">{{ o.habitacionesActivas }}</p>
+      <p class="muted">Inventario operativo</p>
+    </div>
+    <div class="card">
+      <p class="small-label">Ocupadas ahora</p>
+      <p class="metric-value">{{ o.ocupadas }}</p>
+      <p class="muted">Estadías en curso</p>
+    </div>
+    <div class="card">
+      <p class="small-label">Limpieza / mantenimiento</p>
+      <p class="metric-value">
+        {{ o.limpieza }} <span class="text-slate-300">/</span> {{ o.mantenimiento }}
+      </p>
+      <p class="muted">Atención de habitaciones</p>
+    </div>
+    <div class="card">
+      <p class="small-label">Caja neta de hoy</p>
+      <p class="metric-value">{{ caja()?.neto | pen }}</p>
+      <p class="muted">Cobros menos devoluciones</p>
+    </div>
+  </div>
+}
+<div class="grid gap-6 xl:grid-cols-2">
+  <section class="card">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Agenda de hoy</p>
+        <h2>Llegadas</h2>
+      </div>
+      <app-icon name="log-in" />
+    </div>
+    @for (r of entradas(); track r.id) {
+      <a
+        [routerLink]="['/reservas', r.id]"
+        class="flex justify-between gap-3 border-b border-slate-100 py-4"
+        ><div>
+          <p class="font-medium text-sm">{{ r.titular.nombres }} {{ r.titular.apellidos }}</p>
+          <p class="text-xs text-slate-500 mt-1">
+            {{ r.codigo }} · Habitación {{ r.numeroHabitacion }}
+          </p>
+        </div>
+        <app-badge [value]="r.estado"
+      /></a>
+    } @empty {
+      <app-empty
+        title="Sin llegadas para mostrar"
+        description="Consulta todas las reservas para ampliar la búsqueda."
+      />
+    }
+    <a routerLink="/reservas" class="text-action block mt-5">Ver todas las reservas →</a>
+    @if (!auth.admin()) {
+      <p class="muted mt-2">Se muestran hasta 10 reservas confirmadas con entrada hoy.</p>
+    }
+  </section>
+  <section class="card">
+    @if (auth.admin()) {
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Agenda de hoy</p>
+          <h2>Salidas</h2>
+        </div>
+        <app-icon name="log-out" />
+      </div>
+      @for (r of salidas(); track r.id) {
+        <a
+          [routerLink]="['/reservas', r.id]"
+          class="flex justify-between gap-3 border-b border-slate-100 py-4"
+          ><div>
+            <p class="font-medium text-sm">{{ r.titular.nombres }} {{ r.titular.apellidos }}</p>
+            <p class="text-xs text-slate-500 mt-1">
+              {{ r.codigo }} · Habitación {{ r.numeroHabitacion }}
+            </p>
+          </div>
+          <app-badge [value]="r.estado"
+        /></a>
+      } @empty {
+        <app-empty
+          title="Sin salidas para mostrar"
+          description="La agenda se actualiza con las reservas del hotel."
+        />
+      }
+    } @else {
+      <p class="eyebrow">Tu espacio de trabajo</p>
+      <h2 class="mb-5">Accesos rápidos</h2>
+      <a routerLink="/huespedes" class="block rounded-lg bg-slate-50 p-5 mb-3 text-action"
+        >Gestionar huéspedes →</a
+      ><a routerLink="/habitaciones" class="block rounded-lg bg-slate-50 p-5 text-action"
+        >Limpieza y estado de habitaciones →</a
+      >
+    }
+  </section>
+</div>

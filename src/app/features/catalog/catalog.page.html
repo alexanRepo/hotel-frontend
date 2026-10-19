@@ -1,0 +1,157 @@
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Administración del hotel</p>
+    <h1>{{ title }}</h1>
+    <p class="muted">Gestiona los registros y su disponibilidad.</p>
+  </div>
+  @if (canWrite()) {
+    <button class="btn" (click)="edit(null)">+ Nuevo registro</button>
+  }
+</div>
+<app-feedback [error]="error()" />
+<div class="card">
+  <form class="filter-bar" (ngSubmit)="filter()">
+    @if (kind === 'huespedes' || kind === 'habitaciones') {
+      <input
+        class="max-w-sm"
+        [formControl]="search"
+        placeholder="Buscar por nombre, documento o número"
+        aria-label="Buscar"
+      /><button class="btn-secondary">Buscar</button>
+    }
+    <button type="button" class="text-action" (click)="state.load()">Actualizar</button>
+  </form>
+  @if (state.error()) {
+    <div class="error-note" role="alert">{{ state.error() }}</div>
+  }
+  @if (state.loading()) {
+    <app-loading />
+  } @else if (!state.data().contenido.length) {
+    <app-empty />
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Registro</th>
+            <th>Información</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of state.data().contenido; track r.id) {
+            <tr>
+              <td class="font-medium">
+                {{ label(r) }}<span class="block text-xs text-slate-400">#{{ r.id }}</span>
+              </td>
+              <td>
+                {{ secondary(r) }}
+                @if (r.rol) {
+                  <span class="block">{{ r.rol }}</span>
+                }
+              </td>
+              <td>
+                <app-badge [value]="r.activo" />
+                @if (r.estado) {
+                  <span class="ml-2"><app-badge [value]="r.estado" /></span>
+                }
+              </td>
+              <td>
+                <div class="flex flex-wrap items-center gap-3">
+                  @if (canWrite()) {
+                    @if (kind !== 'usuarios') {
+                      <button class="text-action" [disabled]="busy()" (click)="edit(r)">
+                        Editar
+                      </button>
+                    }
+                    <button
+                      class="text-action"
+                      [disabled]="busy() || (kind === 'usuarios' && r.id === auth.user()?.id)"
+                      (click)="toggle(r)"
+                    >
+                      {{ r.activo ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  }
+                  @if (kind === 'habitaciones') {
+                    <select
+                      class="!w-auto !text-xs"
+                      aria-label="Cambiar estado operativo"
+                      [value]="r.estado"
+                      [disabled]="busy()"
+                      (change)="operativo(r, eventValue($event, r.estado))"
+                    >
+                      <option>HABILITADA</option>
+                      <option>LIMPIEZA</option>
+                      <option>MANTENIMIENTO</option>
+                    </select>
+                  }
+                  @if (kind === 'usuarios') {
+                    <select
+                      class="!w-auto !text-xs"
+                      aria-label="Cambiar rol"
+                      [value]="r.rol"
+                      [disabled]="busy() || r.id === auth.user()?.id"
+                      (change)="rol(r, eventValue($event, r.rol))"
+                    >
+                      <option>ADMIN</option>
+                      <option>RECEPCIONISTA</option>
+                    </select>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+  <app-pagination
+    [page]="state.data().pagina"
+    [pages]="state.data().totalPaginas"
+    [total]="state.data().totalElementos"
+    [busy]="state.loading()"
+    (change)="state.page($event)"
+  />
+</div>
+<app-modal
+  [open]="open()"
+  [busy]="busy()"
+  [title]="editing() ? 'Editar registro' : 'Nuevo registro'"
+  (dismiss)="open.set(false)"
+  ><form [formGroup]="form" (ngSubmit)="save()">
+    <app-feedback [error]="error()" />
+    <div class="field-grid">
+      @for (f of fields; track f.key) {
+        <label
+          >{{ f.label }}
+          @if (f.type === 'select') {
+            <select [formControlName]="f.key">
+              @for (option of f.options; track option) {
+                <option [value]="option">{{ option }}</option>
+              }
+            </select>
+          } @else if (f.type === 'lookup') {
+            <app-lookup kind="tipos-habitacion" [label]="lookupLabel()" (chosen)="choice($event)" />
+          } @else {
+            <input
+              [formControlName]="f.key"
+              [type]="f.type === 'money' ? 'text' : f.type"
+              [attr.inputmode]="f.type === 'money' ? 'decimal' : null"
+              [attr.maxlength]="f.max ?? null"
+              [attr.autocomplete]="f.type === 'password' ? 'new-password' : null"
+            />
+          }
+          <app-field-error
+            [control]="form.controls[f.key]"
+            [message]="'Revisa ' + f.label.toLowerCase() + '.'"
+        /></label>
+      }
+    </div>
+    <div class="mt-6 flex justify-end gap-3">
+      <button class="btn-secondary" type="button" [disabled]="busy()" (click)="open.set(false)">
+        Cancelar</button
+      ><button class="btn" [disabled]="busy()">{{ busy() ? 'Guardando…' : 'Guardar' }}</button>
+    </div>
+  </form></app-modal
+>
